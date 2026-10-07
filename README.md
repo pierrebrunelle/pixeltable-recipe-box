@@ -16,7 +16,7 @@ A recipe box with a REST API: store a recipe's title, ingredient list, cooking t
 
 - **FastAPI serving**: one `FastAPIRouter` turns tables and `@pxt.query` functions into typed REST routes (insert, update, delete, compute and query) with OpenAPI docs
 - **Incremental computed columns** powered by plain Python UDFs (`@pxt.udf`)
-- **Importable UDF module**: UDFs in `udfs.py`, tables in `models.py`, queries in `queries.py`, routes in `app.py` (Pixeltable resolves UDFs by module path)
+- **Importable UDF module**: UDFs live in `udfs.py`; tables, queries and routes live together in `app.py` (Pixeltable resolves UDFs by module path)
 - **`pixeltable.toml`** declares a local database and a **Pixeltable Cloud** database, so the same code deploys with `pxt db update`
 
 ## Things to try
@@ -29,13 +29,11 @@ A recipe box with a REST API: store a recipe's title, ingredient list, cooking t
 
 | File | What it is |
 |------|------------|
-| `app.py` | The API: one `FastAPIRouter` wiring the tables and queries into REST routes |
+| `app.py` | The app: tables declared as Python classes, `@pxt.query` functions, and the `FastAPIRouter` routes |
 | `client_demo.py` | Count ingredients, save and edit a recipe, and search quick meals through the API |
-| `models.py` | Tables declared as Python classes: columns, computed columns, indexes |
 | `pixeltable.toml` | Project config: the local database plus a Pixeltable Cloud database (sizing, deploy excludes) |
-| `queries.py` | `@pxt.query` functions served as query routes |
 | `seed.py` | Seed a few recipes |
-| `udfs.py` | Pixeltable UDFs (`@pxt.udf`) in their own importable module |
+| `udfs.py` | Pixeltable UDFs (`@pxt.udf`) in their own importable module, imported by `app.py` |
 | `requirements.txt` / `pyproject.toml` | Dependencies (`pixeltable[serve]>=0.7.14`) |
 
 **Tables**
@@ -106,10 +104,10 @@ def ingredient_count(ingredients: str | None) -> int:
     return len([i for i in raw.split(',') if i.strip()])
 ```
 
-**2. Tables are Python classes (`models.py`).** Annotated attributes are stored columns; attributes assigned an expression are **computed columns** (`id`, `n_ingredients`, `title_upper`, `title_blurb`), evaluated incrementally on every insert or update and recomputed when their inputs change.
+**2. Tables are Python classes (`app.py`).** Annotated attributes are stored columns; attributes assigned an expression are **computed columns** (`id`, `n_ingredients`, `title_upper`, `title_blurb`), evaluated incrementally on every insert or update and recomputed when their inputs change.
 
 ```python
-# models.py
+# app.py
 class Recipes(TableModel, name='recipes'):
     id = pxt.Column(value=pxtf.uuid.uuid7(), primary_key=True)
     title: pxt.String
@@ -122,10 +120,10 @@ class Recipes(TableModel, name='recipes'):
     title_blurb = teaser(title, minutes)
 ```
 
-**3. Queries are functions (`queries.py`).** `@pxt.query` wraps a Pixeltable query so it can be called from Python or exposed as a route:
+**3. Queries are functions (`app.py`).** `@pxt.query` wraps a Pixeltable query so it can be called from Python or exposed as a route:
 
 ```python
-# queries.py
+# app.py
 @pxt.query
 def quick_recipes(max_minutes: int):
     """Recipes that fit a time budget, fastest first."""
